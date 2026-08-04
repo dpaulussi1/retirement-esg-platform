@@ -1,0 +1,19 @@
+.venv/
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.db
+*.sqlite3
+.env
+.DS_Store
+.ipynb_checkpoints/
+coverage/
+htmlcov/
+.pytest_cache/
+
+# Jupyter
+.ipynb_checkpoints
+
+# VS Code
+.vscode/
