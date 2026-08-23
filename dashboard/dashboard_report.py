@@ -27,6 +27,27 @@ portfolio_sharpe = float(
     ].iloc[0]
 )
 
+portfolio_sortino = float(
+    backtest.loc[
+        backtest["metric"] == "sortino",
+        "value"
+    ].iloc[0]
+)
+
+portfolio_calmar = float(
+    backtest.loc[
+        backtest["metric"] == "calmar",
+        "value"
+    ].iloc[0]
+)
+
+portfolio_win_rate = float(
+    backtest.loc[
+        backtest["metric"] == "win_rate",
+        "value"
+    ].iloc[0]
+)
+
 alpha = (
     benchmark.loc[
         benchmark["metric"] == "return",
@@ -69,6 +90,27 @@ plt.text(
     0.05,
     0.55,
     f"Sharpe: {portfolio_sharpe:.2f}",
+    fontsize=14
+)
+
+plt.text(
+    0.05,
+    0.45,
+    f"Sortino: {portfolio_sortino:.2f}",
+    fontsize=14
+)
+
+plt.text(
+    0.05,
+    0.25,
+    f"Calmar: {portfolio_calmar:.2f}",
+    fontsize=14
+)
+
+plt.text(
+    0.05,
+    0.15,
+    f"Win Rate: {portfolio_win_rate:.2f}%",
     fontsize=14
 )
 

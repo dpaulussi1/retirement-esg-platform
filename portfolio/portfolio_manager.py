@@ -1,6 +1,17 @@
 from pathlib import Path
+import sys
+
+ROOT_DIR = Path(__file__).resolve().parent.parent
+
+sys.path.append(str(ROOT_DIR))
+
 import pandas as pd
 import numpy as np
+
+from config.settings import (
+    TOP_N_ASSETS,
+    RISK_FREE_RATE
+)
 
 PORTFOLIO_FILE = Path(
     "data/portfolio/portfolio.csv"
@@ -86,8 +97,49 @@ volatilidade_carteira = (
     * 100
 )
 
+retornos_negativos = (
+    retornos_diarios_portfolio[
+        retornos_diarios_portfolio < 0
+    ]
+)
+
+downside_volatility = (
+    retornos_negativos.std()
+    * np.sqrt(252)
+    * 100
+)
+
+sortino_carteira = (
+    (
+        retorno_anualizado
+        -
+        (RISK_FREE_RATE * 100)
+    )
+    /
+    downside_volatility
+)
+
+dias_positivos = (
+    retornos_diarios_portfolio > 0
+).sum()
+
+dias_totais = len(
+    retornos_diarios_portfolio
+)
+
+win_rate = (
+    dias_positivos
+    / dias_totais
+) * 100
+
+from config.settings import RISK_FREE_RATE
+
 sharpe_carteira = (
-    retorno_anualizado
+    (
+        retorno_anualizado
+        -
+        (RISK_FREE_RATE * 100)
+    )
     /
     volatilidade_carteira
 )
@@ -116,6 +168,12 @@ drawdowns = (
 
 drawdown_carteira = drawdowns.min()
 
+calmar_carteira = (
+    retorno_anualizado
+    /
+    abs(drawdown_carteira)
+)
+
 resultado = pd.DataFrame(
     {
         "metric": [
@@ -123,14 +181,20 @@ resultado = pd.DataFrame(
             "annual_return",
             "volatility",
             "sharpe",
-            "drawdown"
+            "sortino",
+            "drawdown",
+            "calmar",
+            "win_rate"
         ],
         "value": [
             round(retorno_carteira, 2),
             round(retorno_anualizado, 2),
             round(volatilidade_carteira, 2),
             round(sharpe_carteira, 2),
-            round(drawdown_carteira, 2)
+            round(sortino_carteira, 2),
+            round(drawdown_carteira, 2),
+            round(calmar_carteira, 2),
+            round(win_rate, 2)
         ]
     }
 )
@@ -153,5 +217,14 @@ print(
     f"Sharpe da Carteira: {sharpe_carteira:.2f}"
 )
 print(
+    f"Sortino da Carteira: {sortino_carteira:.2f}"
+)
+print(
     f"Drawdown da Carteira: {drawdown_carteira:.2f}%"
+)
+print(
+    f"Calmar da Carteira: {calmar_carteira:.2f}"
+)
+print(
+    f"Win Rate: {win_rate:.2f}%"
 )

@@ -2,4 +2,7 @@ metric,portfolio,ibov
 return,1007.71,259.94
 annual_return,27.19,13.66
 volatility,27.83,23.09
-sharpe,0.98,0.59
+sharpe,0.47,-0.01
+sortino,0.63,-0.02
+calmar,0.54,
+win_rate,52.71,

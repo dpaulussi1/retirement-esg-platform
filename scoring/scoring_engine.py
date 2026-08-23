@@ -9,6 +9,10 @@ fundamentals = pd.read_csv(
     FUNDAMENTALS_FILE
 )
 
+fundamentals = fundamentals[
+    fundamentals["ticker"] != "^BVSP"
+]
+
 print(fundamentals)
 fundamentals["retorno_score"] = (
     fundamentals["retorno"]

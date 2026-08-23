@@ -6,27 +6,54 @@ resultados = []
 DATA_DIR = Path("data/prices")
 
 for arquivo in DATA_DIR.glob("*.csv"):
-    print(arquivo.stem)
 
-    df = pd.read_csv(arquivo, skiprows=3)
+    print(f"Processando: {arquivo.name}")
 
-    # Ensure the price column is numeric (coerce non-numeric to NaN)
-    df.iloc[:, 1] = pd.to_numeric(df.iloc[:, 1], errors="coerce")
+    df = pd.read_csv(
+        arquivo,
+        skiprows=3
+    )
 
-    # Drop rows where the price is NaN after coercion
-    price_col = df.columns[1]
-    df = df.dropna(subset=[price_col]).reset_index(drop=True)
+    # Converte a coluna de preços para número
+    df.iloc[:, 1] = pd.to_numeric(
+        df.iloc[:, 1],
+        errors="coerce"
+    )
 
-    # Use the first and last numeric prices
+    # Remove linhas inválidas
+    preco_coluna = df.columns[1]
+
+    df = (
+        df.dropna(subset=[preco_coluna])
+        .reset_index(drop=True)
+    )
+
+    # Preços inicial e final
     preco_inicial = float(df.iloc[0, 1])
     preco_final = float(df.iloc[-1, 1])
 
-    retorno = ((preco_final / preco_inicial) - 1) * 100
+    # Retorno acumulado
+    retorno = (
+        (preco_final / preco_inicial) - 1
+    ) * 100
 
-    # Daily returns from the numeric price column
-    retornos_diarios = df.iloc[:, 1].pct_change().dropna()
-    volatilidade = retornos_diarios.std() * (252 ** 0.5) * 100
+    # Retornos diários
+    retornos_diarios = (
+        df.iloc[:, 1]
+        .pct_change()
+        .dropna()
+    )
+
+    # Volatilidade anualizada
+    volatilidade = (
+        retornos_diarios.std()
+        * (252 ** 0.5)
+        * 100
+    )
+
+    # Sharpe simplificado
     sharpe = retorno / volatilidade
+
     maximos = df.iloc[:, 1].cummax()
 
     drawdowns = (
@@ -41,16 +68,26 @@ for arquivo in DATA_DIR.glob("*.csv"):
         "retorno": round(retorno, 2),
         "volatilidade": round(volatilidade, 2),
         "sharpe": round(sharpe, 2),
-        "drawdown": round(max_drawdown, 2),
+        "drawdown": round(max_drawdown, 2)
     })
+
+print(
+    arquivo.stem,
+    retorno,
+    volatilidade,
+    sharpe,
+    drawdowns
+)
+print("\nTotal de ativos processados:")
+print(len(resultados))
+
+print("\nAtivos processados:")
+for ativo in resultados:
+    print(ativo["ticker"])
 
 fundamentals = pd.DataFrame(resultados)
 
 print(fundamentals)
-
-print(type(fundamentals))
-
-print("CHEGUEI AQUI")
 
 fundamentals.to_csv(
     "data/fundamentals/fundamentals.csv",
