@@ -70,18 +70,6 @@ for ticker in portfolio["ticker"]:
         f"Contribuição: {contribuicao:.2f}%"
     )
 
-resultado = pd.DataFrame(
-    {
-        "metric": ["portfolio_return"],
-        "value": [round(retorno_carteira, 2)]
-    }
-)
-
-resultado.to_csv(
-    "data/backtests/backtest_results.csv",
-    index=False
-)
-
 anos = 10
 
 retorno_anualizado = (
@@ -108,6 +96,17 @@ curva_carteira = (
     1 + retornos_diarios_portfolio
 ).cumprod()
 
+curva_df = pd.DataFrame(
+    {
+        "portfolio": curva_carteira
+    }
+)
+
+curva_df.to_csv(
+    "data/backtests/portfolio_curve.csv",
+    index=False
+)
+
 maximos = curva_carteira.cummax()
 
 drawdowns = (
@@ -116,6 +115,30 @@ drawdowns = (
 ) * 100
 
 drawdown_carteira = drawdowns.min()
+
+resultado = pd.DataFrame(
+    {
+        "metric": [
+            "portfolio_return",
+            "annual_return",
+            "volatility",
+            "sharpe",
+            "drawdown"
+        ],
+        "value": [
+            round(retorno_carteira, 2),
+            round(retorno_anualizado, 2),
+            round(volatilidade_carteira, 2),
+            round(sharpe_carteira, 2),
+            round(drawdown_carteira, 2)
+        ]
+    }
+)
+
+resultado.to_csv(
+    "data/backtests/backtest_results.csv",
+    index=False
+)
 
 print(
     f"Retorno da Carteira: {retorno_carteira:.2f}%"

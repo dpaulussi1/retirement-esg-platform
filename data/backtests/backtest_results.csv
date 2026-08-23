@@ -1,2 +1,6 @@
 metric,value
-portfolio_return,959.01
+portfolio_return,1007.71
+annual_return,27.19
+volatility,27.83
+sharpe,0.98
+drawdown,-50.62
