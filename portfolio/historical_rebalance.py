@@ -23,6 +23,9 @@ def gerar_fundamentos_historicos(
 
     for arquivo in DATA_DIR.glob("*.csv"):
 
+        if arquivo.stem == "^BVSP":
+            continue
+
         df = pd.read_csv(
             arquivo,
             skiprows=2
@@ -35,6 +38,9 @@ def gerar_fundamentos_historicos(
         df = df[
             df["Date"] <= data_referencia
         ]
+
+        if df.empty:
+            continue
 
         preco_inicial = float(
             df.iloc[0, 1]
@@ -49,15 +55,45 @@ def gerar_fundamentos_historicos(
             - 1
         ) * 100
 
+        retornos_diarios = (
+            df.iloc[:, 1]
+            .pct_change()
+            .dropna()
+        )
+
+        volatilidade = (
+            retornos_diarios.std()
+            * (252 ** 0.5)
+            * 100
+        )
+
+        sharpe = (
+            retorno / volatilidade
+        )
+
+        curva = (
+            1 + retornos_diarios
+        ).cumprod()
+
+        maximos = curva.cummax()
+
+        drawdowns = (
+            (curva - maximos)
+            / maximos
+        ) * 100
+
+        drawdown = drawdowns.min()
+
         resultados.append(
             {
                 "ticker": arquivo.stem,
-                "retorno": round(
-                    retorno,
-                    2
-                )
+                "retorno": round(retorno, 2),
+                "volatilidade": round(volatilidade, 2),
+                "sharpe": round(sharpe, 2),
+                "drawdown": round(drawdown, 2)
             }
         )
+
 
     return pd.DataFrame(
         resultados
@@ -70,37 +106,105 @@ if REBALANCE_FREQUENCY == "semiannual":
         freq="6MS"
     )
 
-DATA_TESTE = "2018-07-01"
+REGISTROS_HISTORICOS = []
 
-fundamentals = (
-    gerar_fundamentos_historicos(
-        DATA_TESTE
+for data in datas:
+
+    print(
+        f"\nRebalanceamento: {data.strftime('%Y-%m-%d')}"
     )
-)
 
-print(
+    fundamentals = (
+        gerar_fundamentos_historicos(
+            data
+        )
+    )
+
+    print(
     "\nFundamentos Históricos"
-)
+    )
 
-print(fundamentals)
+    print(fundamentals)
+
+    if fundamentals.empty:
+        continue
+
+    fundamentals["score_retorno"] = (
+        fundamentals["retorno"]
+        .rank(pct=True)
+    )
+
+    fundamentals["score_sharpe"] = (
+        fundamentals["sharpe"]
+        .rank(pct=True)
+    )
+
+    fundamentals["score_drawdown"] = (
+        fundamentals["drawdown"]
+        .rank(pct=True)
+    )
+
+    fundamentals["retirement_score"] = (
+        fundamentals["score_retorno"] * 0.4
+        +
+        fundamentals["score_sharpe"] * 0.4
+        +
+        fundamentals["score_drawdown"] * 0.2
+    )
+
+    ranking_historico = (
+        fundamentals
+        .sort_values(
+            "retirement_score",
+            ascending=False
+        )
+    )
+
+    top6 = ranking_historico.head(6)
+
+    for _, ativo in top6.iterrows():
+
+        REGISTROS_HISTORICOS.append(
+            {
+                "rebalance_date": data.strftime(
+                    "%Y-%m-%d"
+                ),
+                "ticker": ativo["ticker"],
+                "retirement_score": ativo[
+                    "retirement_score"
+                ]
+            }
+        )
+
+    historico_df = pd.DataFrame(
+        REGISTROS_HISTORICOS
+    )
+
+    historico_df.to_csv(
+        "data/backtests/historical_portfolios.csv",
+        index=False
+    )
 
 print(
-    f"Data teste: {DATA_TESTE}"
+    "\nCarteiras Históricas"
 )
 
-df = pd.read_csv(
-    "data/prices/PETR4.SA.csv",
-    skiprows=2
+print(
+    historico_df.head(20)
 )
 
-df["Date"] = pd.to_datetime(
-    df["Date"]
+print(
+    "\nRanking Histórico"
 )
 
-df_cortado = df[
-    df["Date"] <= DATA_TESTE
-]
-
+print(
+    ranking_historico[
+        [
+            "ticker",
+            "retirement_score"
+        ]
+    ]
+)
 
 datas = pd.date_range(
     start=START_DATE,
