@@ -20,6 +20,29 @@ if REBALANCE_FREQUENCY == "semiannual":
         freq="6MS"
     )
 
+DATA_TESTE = "2018-07-01"
+
+print(
+    f"Data teste: {DATA_TESTE}"
+)
+
+df = pd.read_csv(
+    "data/prices/PETR4.SA.csv",
+    skiprows=2
+)
+
+df["Date"] = pd.to_datetime(
+    df["Date"]
+)
+
+df_cortado = df[
+    df["Date"] <= DATA_TESTE
+]
+
+print(
+    df_cortado.tail()
+)
+
 datas = pd.date_range(
     start=START_DATE,
     end=END_DATE,
