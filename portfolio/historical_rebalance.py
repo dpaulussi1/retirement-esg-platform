@@ -13,6 +13,56 @@ from config.settings import (
     REBALANCE_FREQUENCY
 )
 
+def gerar_fundamentos_historicos(
+    data_referencia
+):
+
+    resultados = []
+
+    DATA_DIR = Path("data/prices")
+
+    for arquivo in DATA_DIR.glob("*.csv"):
+
+        df = pd.read_csv(
+            arquivo,
+            skiprows=2
+        )
+
+        df["Date"] = pd.to_datetime(
+            df["Date"]
+        )
+
+        df = df[
+            df["Date"] <= data_referencia
+        ]
+
+        preco_inicial = float(
+            df.iloc[0, 1]
+        )
+
+        preco_final = float(
+            df.iloc[-1, 1]
+        )
+
+        retorno = (
+            (preco_final / preco_inicial)
+            - 1
+        ) * 100
+
+        resultados.append(
+            {
+                "ticker": arquivo.stem,
+                "retorno": round(
+                    retorno,
+                    2
+                )
+            }
+        )
+
+    return pd.DataFrame(
+        resultados
+    )
+
 if REBALANCE_FREQUENCY == "semiannual":
     datas = pd.date_range(
         start=START_DATE,
@@ -21,6 +71,18 @@ if REBALANCE_FREQUENCY == "semiannual":
     )
 
 DATA_TESTE = "2018-07-01"
+
+fundamentals = (
+    gerar_fundamentos_historicos(
+        DATA_TESTE
+    )
+)
+
+print(
+    "\nFundamentos Históricos"
+)
+
+print(fundamentals)
 
 print(
     f"Data teste: {DATA_TESTE}"
@@ -39,9 +101,6 @@ df_cortado = df[
     df["Date"] <= DATA_TESTE
 ]
 
-print(
-    df_cortado.tail()
-)
 
 datas = pd.date_range(
     start=START_DATE,
@@ -78,5 +137,3 @@ for data in datas:
 historico = pd.DataFrame(
     REGISTROS
 )
-
-print(historico.head(20))
