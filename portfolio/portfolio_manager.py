@@ -12,6 +12,7 @@ print(portfolio)
 
 retorno_carteira = 0
 retornos_carteira = []
+retornos_diarios_portfolio = None
 
 for ticker in portfolio["ticker"]:
 
@@ -22,6 +23,11 @@ for ticker in portfolio["ticker"]:
     df = pd.read_csv(
         arquivo,
         skiprows=3
+    )
+    retornos_diarios = (
+        df.iloc[:, 1]
+        .pct_change()
+        .dropna()
     )
 
     print(df.head())
@@ -44,6 +50,18 @@ for ticker in portfolio["ticker"]:
     contribuicao = (
         retorno * peso
     ) / 100
+
+    retornos_ponderados = (
+        retornos_diarios * (peso / 100)
+    )
+
+    if retornos_diarios_portfolio is None:
+        retornos_diarios_portfolio = retornos_ponderados
+    else:
+        retornos_diarios_portfolio = (
+            retornos_diarios_portfolio
+            + retornos_ponderados
+        )
 
     retorno_carteira += contribuicao
     retornos_carteira.append(contribuicao)
@@ -74,8 +92,10 @@ retorno_anualizado = (
     - 1
 ) * 100
 
-volatilidade_carteira = np.std(
-    retornos_carteira
+volatilidade_carteira = (
+    retornos_diarios_portfolio.std()
+    * np.sqrt(252)
+    * 100
 )
 
 sharpe_carteira = (
@@ -84,14 +104,18 @@ sharpe_carteira = (
     volatilidade_carteira
 )
 
-maior_contribuicao = max(retornos_carteira)
+curva_carteira = (
+    1 + retornos_diarios_portfolio
+).cumprod()
 
-menor_contribuicao = min(retornos_carteira)
+maximos = curva_carteira.cummax()
 
-drawdown_carteira = (
-    (menor_contribuicao - maior_contribuicao)
-    / maior_contribuicao
+drawdowns = (
+    (curva_carteira - maximos)
+    / maximos
 ) * 100
+
+drawdown_carteira = drawdowns.min()
 
 print(
     f"Retorno da Carteira: {retorno_carteira:.2f}%"
