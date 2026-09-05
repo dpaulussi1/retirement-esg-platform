@@ -13,6 +13,8 @@ from config.settings import (
     REBALANCE_FREQUENCY
 )
 
+REGISTROS_HISTORICOS = []
+
 def gerar_fundamentos_historicos(
     data_referencia
 ):
@@ -42,6 +44,9 @@ def gerar_fundamentos_historicos(
         if df.empty:
             continue
 
+        if len(df) < 2:
+                continue
+
         preco_inicial = float(
             df.iloc[0, 1]
         )
@@ -67,9 +72,10 @@ def gerar_fundamentos_historicos(
             * 100
         )
 
-        sharpe = (
-            retorno / volatilidade
-        )
+        if volatilidade == 0:
+            sharpe = 0
+        else:
+            sharpe = retorno / volatilidade
 
         curva = (
             1 + retornos_diarios
@@ -120,15 +126,16 @@ for data in datas:
         )
     )
 
-    print(
-    "\nFundamentos Históricos"
-    )
+    #print(
+    #"\nFundamentos Históricos"
+    #)
 
-    print(fundamentals)
+    #print(fundamentals)
 
     if fundamentals.empty:
         continue
-
+    
+    
     fundamentals["score_retorno"] = (
         fundamentals["retorno"]
         .rank(pct=True)
@@ -185,6 +192,7 @@ for data in datas:
         index=False
     )
 
+    
 print(
     "\nCarteiras Históricas"
 )
@@ -193,18 +201,18 @@ print(
     historico_df.head(20)
 )
 
-print(
-    "\nRanking Histórico"
-)
+#print(
+#    "\nRanking Histórico"
+#)
 
-print(
-    ranking_historico[
-        [
-            "ticker",
-            "retirement_score"
-        ]
-    ]
-)
+#print(
+#    ranking_historico[
+#        [
+#            "ticker",
+#            "retirement_score"
+#        ]
+#    ]
+#)
 
 datas = pd.date_range(
     start=START_DATE,
@@ -212,32 +220,249 @@ datas = pd.date_range(
     freq="6MS"
 )
 
-RANKING_FILE = "data/scoring/ranking.csv"
+# =====================================
+# RETORNOS HISTÓRICOS
+# =====================================
 
-ranking = pd.read_csv(
-    RANKING_FILE
+historico = pd.read_csv(
+    "data/backtests/historical_portfolios.csv"
 )
 
-REGISTROS = []
+RETORNOS = []
 
-for data in datas:
+for i in range(len(datas) - 1):
 
-    top6 = ranking.head(6)
+    data_inicio = (
+        datas[i]
+        .strftime("%Y-%m-%d")
+    )
 
-    for _, ativo in top6.iterrows():
+    data_fim = (
+        datas[i + 1]
+        .strftime("%Y-%m-%d")
+    )
 
-        REGISTROS.append(
-            {
-                "rebalance_date": data.strftime(
-                    "%Y-%m-%d"
-                ),
-                "ticker": ativo["ticker"],
-                "retirement_score": ativo[
-                    "retirement_score"
-                ]
-            }
+    carteira = historico[
+        historico["rebalance_date"]
+        == data_inicio
+    ]
+
+    if carteira.empty:
+        continue
+
+    retornos = []
+
+    print(
+        f"\nPeríodo: {data_inicio} -> {data_fim}"
+    )
+
+    for ticker in carteira["ticker"]:
+
+        arquivo = (
+            Path("data/prices")
+            / f"{ticker}.csv"
         )
 
-historico = pd.DataFrame(
-    REGISTROS
+        if not arquivo.exists():
+            continue
+
+        df = pd.read_csv(
+            arquivo,
+            skiprows=2
+        )
+
+        df["Date"] = pd.to_datetime(
+            df["Date"]
+        )
+
+        df_inicio = df[
+            df["Date"] <= data_inicio
+        ]
+
+        df_fim = df[
+            df["Date"] <= data_fim
+        ]
+
+        if (
+            df_inicio.empty
+            or
+            df_fim.empty
+        ):
+            continue
+
+        preco_inicio = float(
+            df_inicio.iloc[-1, 1]
+        )
+
+        preco_fim = float(
+            df_fim.iloc[-1, 1]
+        )
+
+        retorno = (
+            preco_fim
+            / preco_inicio
+        ) - 1
+
+        retornos.append(
+            retorno
+        )
+
+        print(
+            f"{ticker}: {retorno:.2%}"
+        )
+
+    if len(retornos) == 0:
+        continue
+
+    retorno_carteira = (
+        sum(retornos)
+        /
+        len(retornos)
+    )
+
+    print(
+        f"Retorno da Carteira: "
+        f"{retorno_carteira:.2%}"
+    )
+
+    RETORNOS.append(
+        {
+            "data_inicio": data_inicio,
+            "data_fim": data_fim,
+            "retorno": round(
+                retorno_carteira,
+                4
+            )
+        }
+    )
+
+retornos_df = pd.DataFrame(
+    RETORNOS
+)
+
+retornos_df.to_csv(
+    "data/backtests/historical_returns.csv",
+    index=False
+)
+
+print(
+    "\nRetornos Históricos"
+)
+
+print(
+    retornos_df.head()
+)
+
+# =====================================
+# CURVA PATRIMONIAL
+# =====================================
+
+capital = 100.0
+
+PATRIMONIO = []
+
+for _, row in retornos_df.iterrows():
+
+    capital *= (
+        1 + row["retorno"]
+    )
+
+    PATRIMONIO.append(
+        {
+            "data": row["data_fim"],
+            "capital": round(
+                capital,
+                2
+            )
+        }
+    )
+
+patrimonio_df = pd.DataFrame(
+    PATRIMONIO
+)
+
+patrimonio_df.to_csv(
+    "data/backtests/equity_curve.csv",
+    index=False
+)
+
+print(
+    "\nCurva Patrimonial"
+)
+
+print(
+    patrimonio_df.head()
+)
+
+print(
+    "\nCapital Final"
+)
+
+print(
+    f"R$ {capital:.2f}"
+)
+
+capital_final = patrimonio_df.iloc[-1]["capital"]
+
+print(
+    f"\nCapital Final: {capital_final:.2f}"
+)
+
+anos = (
+    len(retornos_df) * 0.5
+)
+
+cagr = (
+    (capital_final / 100)
+    ** (1 / anos)
+    - 1
+)
+
+print(
+    f"CAGR: {cagr:.2%}"
+)
+
+serie = patrimonio_df["capital"]
+
+maximos = serie.cummax()
+
+drawdowns = (
+    serie - maximos
+) / maximos
+
+max_drawdown = drawdowns.min()
+
+print(
+    f"Max Drawdown: {max_drawdown:.2%}"
+)
+
+patrimonio_df["maximo"] = (
+    patrimonio_df["capital"]
+    .cummax()
+)
+
+patrimonio_df["drawdown"] = (
+    patrimonio_df["capital"]
+    /
+    patrimonio_df["maximo"]
+    - 1
+)
+
+max_drawdown = (
+    patrimonio_df["drawdown"]
+    .min()
+)
+
+print(
+    f"Max Drawdown: {max_drawdown:.2%}"
+)
+
+capital_inicial = 100
+
+retorno_total = (
+    capital_final / capital_inicial
+) - 1
+
+print(
+    f"Retorno Total: {retorno_total:.2%}"
 )
